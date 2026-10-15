@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "PDF Page Capturer",
+  "version": "1.0",
+  "description": "Captures rendered PDF.js pages on the current site and combines them into a single downloadable PDF.",
+  "permissions": ["activeTab", "scripting", "downloads", "storage", "notifications"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PDF Page Capturer",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
+}

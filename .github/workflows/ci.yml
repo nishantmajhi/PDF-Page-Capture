@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # tests/harness.js reads the first commit's files with git show.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: node --test "tests/*.test.js"
+
+  # The browser suite (node tests/browser/run.js) is not run here. It passes
+  # 13 of 13 in the author's working tree, but did not in any full run on
+  # Linux or in a fresh Windows clone; see review.md.

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Fixture Viewer · Test Author</title>
+<style>
+  body { margin: 0; font: 14px sans-serif; }
+  .pdf-page { margin: 12px auto; background: #eee; border: 1px solid #ccc; }
+  .pdf-page canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<!--
+  A stand-in for the web viewer the extension was written against, built from
+  the markup its default selectors describe (popup.js, DEFAULT_ZOOM_SELECTORS).
+
+  Behaves the way a lazy PDF.js viewer does: a page gets a canvas only once it
+  has been scrolled near the viewport, and a zoom change throws every canvas
+  away and re-renders at the new size. Everything is set from the query string:
+
+    pages=N      number of pages                       (default 5)
+    w=, h=       canvas size in pixels at 100% zoom   (default 400 x 500)
+    zoom=Z       starting zoom percent                 (default 60)
+    steps=a,b,c  the zoom ladder the buttons walk      (default 25-300 by 25,
+                 with 60 included)
+    noise=1      fill canvases with random pixels, so a PNG cannot compress
+    fail=3,7     pages that never render
+    delay=ms     render delay after a page becomes visible (default 30)
+
+  Page i's canvas is i pixels taller than the base height, so the sizes of the
+  pages in a saved PDF say which pages were captured and in what order.
+-->
+<div class="pdf-viewer">
+  <div class="toolbar">
+    <button class="viewer-zoom-btn" title="Zoom out">-</button>
+    <span class="viewer-zoom-val mono">60%</span>
+    <button class="viewer-zoom-btn" title="Zoom in">+</button>
+  </div>
+  <div id="pages"></div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const N = Number(q.get('pages') || 5);
+  const W = Number(q.get('w') || 400);
+  const H = Number(q.get('h') || 500);
+  const NOISE = q.get('noise') === '1';
+  const FAIL = new Set((q.get('fail') || '').split(',').filter(Boolean).map(Number));
+  const DELAY = Number(q.get('delay') || 30);
+  const STEPS = (q.get('steps') || '25,50,60,75,100,125,150,175,200,225,250,275,300').split(',').map(Number);
+  let zoom = Number(q.get('zoom') || 60);
+
+  // Everything the test wants to know about what the extension did to the page.
+  window.viewer = { zoomHistory: [zoom], renders: 0 };
+
+  const valEl = document.querySelector('.viewer-zoom-val');
+  const pagesEl = document.getElementById('pages');
+  const pages = [];
+  for (let i = 1; i <= N; i++) {
+    const div = document.createElement('div');
+    div.className = 'pdf-page';
+    div.dataset.page = i;
+    pagesEl.appendChild(div);
+    pages.push(div);
+  }
+
+  function size(i) {
+    return { w: Math.round((W * zoom) / 100), h: Math.round((H * zoom) / 100) + i };
+  }
+
+  function layout() {
+    pages.forEach((div, k) => {
+      const s = size(k + 1);
+      div.style.width = s.w + 'px';
+      div.style.height = s.h + 'px';
+    });
+  }
+
+  // A render is scheduled for one zoom. A zoom change while it waits makes it
+  // stale, and the render setZoom schedules for the new zoom replaces it; a
+  // stale one must not block that, or the pages in view never render.
+  function render(div) {
+    const i = Number(div.dataset.page);
+    if (FAIL.has(i) || div.querySelector('canvas') || div.dataset.pending === String(zoom)) return;
+    const z = zoom;
+    div.dataset.pending = String(z);
+    setTimeout(() => {
+      if (div.dataset.pending !== String(z)) return; // replaced by a render for a newer zoom
+      delete div.dataset.pending;
+      if (z !== zoom) return; // zoom moved on while waiting; the next pass renders it
+      const s = size(i);
+      const c = document.createElement('canvas');
+      c.width = s.w;
+      c.height = s.h;
+      const ctx = c.getContext('2d');
+      if (NOISE) {
+        const img = ctx.createImageData(s.w, s.h);
+        const u32 = new Uint32Array(img.data.buffer);
+        let x = (i * 2654435761) >>> 0;
+        for (let p = 0; p < u32.length; p++) {
+          x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0;
+          u32[p] = x | 0xff000000;
+        }
+        ctx.putImageData(img, 0, 0);
+      } else {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, s.w, s.h);
+        ctx.fillStyle = '#000';
+        ctx.font = `${Math.round(s.h / 6)}px sans-serif`;
+        ctx.fillText(String(i), s.w / 3, s.h / 2);
+      }
+      div.appendChild(c);
+      window.viewer.renders++;
+    }, DELAY);
+  }
+
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) render(e.target);
+  }, { rootMargin: '200px' });
+  pages.forEach((p) => io.observe(p));
+
+  function setZoom(z) {
+    zoom = z;
+    valEl.textContent = z + '%';
+    window.viewer.zoomHistory.push(z);
+    pages.forEach((p) => p.querySelector('canvas')?.remove());
+    layout();
+    // Re-render whatever is near the viewport now.
+    pages.forEach((p) => {
+      const r = p.getBoundingClientRect();
+      if (r.bottom > -200 && r.top < innerHeight + 200) render(p);
+    });
+  }
+
+  document.querySelector('[title="Zoom in"]').addEventListener('click', () => {
+    const next = STEPS.find((s) => s > zoom);
+    if (next !== undefined) setZoom(next);
+  });
+  document.querySelector('[title="Zoom out"]').addEventListener('click', () => {
+    const next = [...STEPS].reverse().find((s) => s < zoom);
+    if (next !== undefined) setZoom(next);
+  });
+
+  valEl.textContent = zoom + '%';
+  layout();
+</script>
+</body>
+</html>

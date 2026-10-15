@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>PDF Page Capturer</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <!-- ===================== MAIN VIEW ===================== -->
+  <div id="mainView" class="view">
+    <header class="header">
+      <img class="mark" src="icons/icon32.png" alt="" />
+      <div class="header-text">
+        <h1>PDF Page Capturer</h1>
+        <p class="subtitle">Scan rendered pages into one PDF</p>
+      </div>
+      <button type="button" id="gearBtn" class="icon-btn" title="Settings" aria-label="Open settings">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <section class="scale-step">
+      <label class="field-label">Capture scale</label>
+      <div class="scale-row" id="scaleRow">
+        <button class="scale-option" data-scale="0.5">0.5×</button>
+        <button class="scale-option active" data-scale="1">1×</button>
+        <button class="scale-option" data-scale="2">2×</button>
+        <button class="scale-option" data-scale="3">3×</button>
+      </div>
+      <p class="scale-hint" id="scaleHint">Standard resolution</p>
+    </section>
+
+    <section class="scan-stage" id="scanStage" data-state="idle">
+      <svg class="scan-stack" id="scanStack" viewBox="0 0 120 90" aria-hidden="true">
+        <!-- back pages -->
+        <rect class="page page-back" x="22" y="10" width="64" height="76" rx="3" />
+        <rect class="page page-mid" x="16" y="6" width="64" height="76" rx="3" />
+        <!-- front page (the one being "read") -->
+        <rect class="page page-front" x="10" y="2" width="64" height="76" rx="3" />
+        <line class="page-rule" x1="20" y1="20" x2="62" y2="20" />
+        <line class="page-rule" x1="20" y1="30" x2="62" y2="30" />
+        <line class="page-rule" x1="20" y1="40" x2="62" y2="40" />
+        <line class="page-rule" x1="20" y1="50" x2="62" y2="50" />
+        <!-- scanline -->
+        <rect class="scanline" id="scanline" x="8" y="2" width="68" height="3" />
+      </svg>
+      <div class="counter" id="counter">READY</div>
+    </section>
+
+    <button id="captureBtn" class="btn btn-primary">
+      <span id="captureBtnLabel">Capture pages</span>
+    </button>
+
+    <div class="log-panel" id="logPanel" aria-live="polite"></div>
+
+    <div class="filename-step" id="filenameStep">
+      <label class="field-label" for="filenameInput">File name</label>
+      <div class="field-row">
+        <input id="filenameInput" type="text" value="captured" spellcheck="false" />
+        <span class="field-suffix">.pdf</span>
+      </div>
+      <button id="saveBtn" class="btn btn-success">Save PDF</button>
+    </div>
+  </div>
+
+  <!-- ===================== SETTINGS VIEW ===================== -->
+  <div id="settingsView" class="view" hidden>
+    <header class="header settings-header">
+      <button type="button" id="backBtn" class="icon-btn" title="Back" aria-label="Back to capture">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+      </button>
+      <div class="header-text">
+        <h1>Viewer selectors</h1>
+        <p class="subtitle">Matched against the page's own DOM</p>
+      </div>
+    </header>
+
+    <section class="settings-body">
+      <p class="selector-hint">
+        Zoom is driven by the viewer's own controls (sharper than browser zoom), scoped inside the parent container below.
+        If the page's markup changes, update the fields here — saved instantly, no extension update needed.
+      </p>
+
+      <label class="field-label" for="parentInput">Parent container selector</label>
+      <input id="parentInput" class="selector-input" type="text" spellcheck="false" />
+
+      <label class="field-label" for="zoomInInput">Zoom-in button selector</label>
+      <input id="zoomInInput" class="selector-input" type="text" spellcheck="false" />
+
+      <label class="field-label" for="zoomOutInput">Zoom-out button selector</label>
+      <input id="zoomOutInput" class="selector-input" type="text" spellcheck="false" />
+
+      <label class="field-label" for="zoomValInput">Zoom value display selector</label>
+      <input id="zoomValInput" class="selector-input" type="text" spellcheck="false" />
+
+      <p class="selector-note">Zoom-in/out/value are looked up inside the parent container first — only falling back to the whole page if the parent isn't found.</p>
+
+      <div class="settings-actions">
+        <button type="button" id="resetSelectorsBtn" class="selector-reset">Reset to defaults</button>
+        <span class="selector-saved" id="selectorSaved">saved</span>
+      </div>
+    </section>
+  </div>
+
+  <script src="lib/jspdf.umd.min.js"></script>
+  <script src="common.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
